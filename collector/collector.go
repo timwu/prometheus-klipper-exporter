@@ -40,6 +40,78 @@ func getValidLabelName(str string) string {
 	return prometheusMetricNameInvalidCharactersRegex.ReplaceAllString(strings.Replace(str, "-", "_", -1), "")
 }
 
+// Define mcu metrics.
+// If the mcuName is empty, fallback to existing metrics to preserve backwards compatibility
+func mcuMetrics(mcuName string, mcuStats PrinterObjectMcu, ch chan<- prometheus.Metric) {
+	var variableNames []string
+	labels := make([]string, 0)
+	metricPrefix := "klipper_mcu_"
+	if mcuName != "" {
+		variableNames = []string{"mcu"}
+		labels = append(labels, mcuName)
+		metricPrefix = "klipper_custom_mcu_"
+	}
+
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"awake", "Klipper mcu awake.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.McuAwake,
+		labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"write_bytes", "Klipper mcu write bytes.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.BytesWrite, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"read_bytes", "Klipper mcu read bytes.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.BytesRead, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"retransmit_bytes", "Klipper mcu retransmit bytes.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.BytesRetransmit, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"invalid_bytes", "Klipper mcu invalid btyles.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.BytesInvalid, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"send_seq", "Klipper mcu send sequence.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.SendSeq, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"receive_seq", "Klipper mcu receive sequence.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.ReceiveSeq, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"retransmit_seq", "Klipper mcu retransmit sequence.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.RetransmitSeq,
+		labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"srtt", "Klipper mcu smoothed round trip time.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.Srtt, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"rttvar", "Klipper mcu round trip time variance.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.Rttvar, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"rto", "Klipper mcu retransmission timeouts.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.Rto, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"ready_bytes", "Klipper mcu ready bytes.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.ReadyBytes, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"stalled_bytes", "Klipper mcu stalled bytes.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.StalledBytes, labels...)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metricPrefix+"clock_frequency", "Klipper mcu clock frequency.", variableNames, nil),
+		prometheus.GaugeValue,
+		mcuStats.LastStats.Freq, labels...)
+}
+
 // Collect implements Prometheus.Collector.
 func (c collector) Collect(ch chan<- prometheus.Metric) {
 
@@ -285,62 +357,7 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 			prometheus.GaugeValue,
 			result.Result.Status.GcodeMove.GcodePosition[2])
 		// mcu
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_awake", "Klipper mcu awake.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.McuAwake)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_write_bytes", "Klipper mcu write bytes.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.BytesWrite)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_read_bytes", "Klipper mcu read bytes.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.BytesRead)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_retransmit_bytes", "Klipper mcu retransmit bytes.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.BytesRetransmit)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_invalid_bytes", "Klipper mcu invalid btyles.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.BytesInvalid)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_send_seq", "Klipper mcu send sequence.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.SendSeq)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_receive_seq", "Klipper mcu receive sequence.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.ReceiveSeq)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_retransmit_seq", "Klipper mcu retransmit sequence.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.RetransmitSeq)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_srtt", "Klipper mcu smoothed round trip time.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.Srtt)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_rttvar", "Klipper mcu round trip time variance.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.Rttvar)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_rto", "Klipper mcu retransmission timeouts.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.Rto)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_ready_bytes", "Klipper mcu ready bytes.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.ReadyBytes)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_stalled_bytes", "Klipper mcu stalled bytes.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.StalledBytes)
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc("klipper_mcu_clock_frequency", "Klipper mcu clock frequency.", nil, nil),
-			prometheus.GaugeValue,
-			result.Result.Status.Mcu.LastStats.Freq)
+		mcuMetrics("", result.Result.Status.Mcu, ch)
 
 		// toolhead
 		ch <- prometheus.MustNewConstMetric(
@@ -508,6 +525,11 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 				prometheus.GaugeValue,
 				v.Value,
 				pinName)
+		}
+
+		// custom mcus
+		for k, v := range result.Result.Status.Mcus {
+			mcuMetrics(k, v, ch)
 		}
 	}
 }
